@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Table, MapPin } from "lucide-react";
+import { Plus, Table, MapPin, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,84 +21,105 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { projectService } from "@/services/projectService";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Field {
-  id: string;
-  name: string;
-  type: "text" | "number" | "boolean" | "dropdown";
-  required: boolean;
-  options?: string[];
-}
+type TableRow = Database["public"]["Tables"]["tables"]["Row"];
+type FieldRow = Database["public"]["Tables"]["fields"]["Row"];
 
-interface TableSchema {
-  id: string;
-  name: string;
-  type: "standard" | "geometry";
-  geometryType?: "point" | "line" | "polygon";
-  fields: Field[];
-  createdAt: Date;
+interface TableWithFields extends TableRow {
+  fields: FieldRow[];
 }
 
 export function SchemaTab({ projectId }: { projectId: string }) {
-  const [tables, setTables] = useState<TableSchema[]>([]);
+  const [tables, setTables] = useState<TableWithFields[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [currentTableId, setCurrentTableId] = useState<string | null>(null);
   const [tableType, setTableType] = useState<"standard" | "geometry">("standard");
+  const [creating, setCreating] = useState(false);
+  const [addingField, setAddingField] = useState(false);
   
   const [newTable, setNewTable] = useState({
     name: "",
     geometryType: "point" as "point" | "line" | "polygon",
   });
 
-  const [newField, setNewField] = useState<Field>({
-    id: "",
+  const [newField, setNewField] = useState({
     name: "",
-    type: "text",
+    type: "text" as "text" | "number" | "boolean" | "dropdown",
     required: false,
-    options: [],
+    options: [] as string[],
   });
 
   const [dropdownOptions, setDropdownOptions] = useState("");
 
-  const handleCreateTable = () => {
-    if (!newTable.name.trim()) return;
+  useEffect(() => {
+    loadTables();
+  }, [projectId]);
 
-    const table: TableSchema = {
-      id: Date.now().toString(),
-      name: newTable.name,
-      type: tableType,
-      geometryType: tableType === "geometry" ? newTable.geometryType : undefined,
-      fields: [],
-      createdAt: new Date(),
-    };
-
-    setTables([...tables, table]);
-    setNewTable({ name: "", geometryType: "point" });
-    setIsCreateDialogOpen(false);
-    setTableType("standard");
+  const loadTables = async () => {
+    setLoading(true);
+    const data = await projectService.getTables(projectId);
+    const tablesWithFields = await Promise.all(
+      data.map(async (table) => {
+        const fields = await projectService.getFields(table.id);
+        return { ...table, fields };
+      })
+    );
+    setTables(tablesWithFields);
+    setLoading(false);
   };
 
-  const handleAddField = () => {
-    if (!newField.name.trim() || !currentTableId) return;
+  const handleCreateTable = async () => {
+    if (!newTable.name.trim()) return;
 
-    const field: Field = {
-      ...newField,
-      id: Date.now().toString(),
-      options: newField.type === "dropdown" 
-        ? dropdownOptions.split(",").map(opt => opt.trim()).filter(Boolean)
-        : undefined,
+    setCreating(true);
+    const tableData = {
+      project_id: projectId,
+      name: newTable.name,
+      type: tableType,
+      geometry_type: tableType === "geometry" ? newTable.geometryType : null,
     };
 
-    setTables(tables.map(table => 
-      table.id === currentTableId
-        ? { ...table, fields: [...table.fields, field] }
-        : table
-    ));
+    const table = await projectService.createTable(tableData);
+    if (table) {
+      setTables([{ ...table, fields: [] }, ...tables]);
+      setNewTable({ name: "", geometryType: "point" });
+      setIsCreateDialogOpen(false);
+      setTableType("standard");
+    }
+    setCreating(false);
+  };
 
-    setNewField({ id: "", name: "", type: "text", required: false, options: [] });
-    setDropdownOptions("");
-    setIsFieldDialogOpen(false);
+  const handleAddField = async () => {
+    if (!newField.name.trim() || !currentTableId) return;
+
+    setAddingField(true);
+    const fieldData = {
+      table_id: currentTableId,
+      name: newField.name,
+      type: newField.type,
+      required: newField.required,
+      options: newField.type === "dropdown" 
+        ? dropdownOptions.split(",").map(opt => opt.trim()).filter(Boolean)
+        : null,
+    };
+
+    const field = await projectService.createField(fieldData);
+    if (field) {
+      setTables(tables.map(table => 
+        table.id === currentTableId
+          ? { ...table, fields: [...table.fields, field] }
+          : table
+      ));
+
+      setNewField({ name: "", type: "text", required: false, options: [] });
+      setDropdownOptions("");
+      setIsFieldDialogOpen(false);
+    }
+    setAddingField(false);
   };
 
   const openFieldDialog = (tableId: string) => {
@@ -106,17 +127,34 @@ export function SchemaTab({ projectId }: { projectId: string }) {
     setIsFieldDialogOpen(true);
   };
 
-  const handleDeleteTable = (tableId: string) => {
-    setTables(tables.filter(t => t.id !== tableId));
+  const handleDeleteTable = async (tableId: string) => {
+    const success = await projectService.deleteTable(tableId);
+    if (success) {
+      setTables(tables.filter(t => t.id !== tableId));
+    }
   };
 
-  const handleDeleteField = (tableId: string, fieldId: string) => {
-    setTables(tables.map(table =>
-      table.id === tableId
-        ? { ...table, fields: table.fields.filter(f => f.id !== fieldId) }
-        : table
-    ));
+  const handleDeleteField = async (tableId: string, fieldId: string) => {
+    const success = await projectService.deleteField(fieldId);
+    if (success) {
+      setTables(tables.map(table =>
+        table.id === tableId
+          ? { ...table, fields: table.fields.filter(f => f.id !== fieldId) }
+          : table
+      ));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading schema...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -169,7 +207,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                       <CardTitle>{table.name}</CardTitle>
                       <CardDescription>
                         {table.type === "geometry" 
-                          ? `Geometry Table (${table.geometryType})` 
+                          ? `Geometry Table (${table.geometry_type})` 
                           : "Standard Table"} • {table.fields.length} fields
                       </CardDescription>
                     </div>
@@ -216,7 +254,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                             <div className="text-sm text-muted-foreground mt-1">
                               Type: {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
                               {field.type === "dropdown" && field.options && (
-                                <span> • Options: {field.options.join(", ")}</span>
+                                <span> • Options: {(field.options as string[]).join(", ")}</span>
                               )}
                             </div>
                           </div>
@@ -263,7 +301,8 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                   placeholder="e.g., Customers, Inventory"
                   value={newTable.name}
                   onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateTable()}
+                  onKeyDown={(e) => e.key === "Enter" && !creating && handleCreateTable()}
+                  disabled={creating}
                 />
               </div>
             </TabsContent>
@@ -276,7 +315,8 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                   placeholder="e.g., Roads, Buildings, Parcels"
                   value={newTable.name}
                   onChange={(e) => setNewTable({ ...newTable, name: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateTable()}
+                  onKeyDown={(e) => e.key === "Enter" && !creating && handleCreateTable()}
+                  disabled={creating}
                 />
               </div>
 
@@ -285,6 +325,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                 <Select
                   value={newTable.geometryType}
                   onValueChange={(v) => setNewTable({ ...newTable, geometryType: v as "point" | "line" | "polygon" })}
+                  disabled={creating}
                 >
                   <SelectTrigger id="geometry-type">
                     <SelectValue />
@@ -300,10 +341,23 @@ export function SchemaTab({ projectId }: { projectId: string }) {
           </Tabs>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreateDialogOpen(false)}
+              disabled={creating}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateTable}>Create Table</Button>
+            <Button onClick={handleCreateTable} disabled={creating}>
+              {creating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Table"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -326,6 +380,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                 placeholder="e.g., Address, Phone Number"
                 value={newField.name}
                 onChange={(e) => setNewField({ ...newField, name: e.target.value })}
+                disabled={addingField}
               />
             </div>
 
@@ -333,7 +388,8 @@ export function SchemaTab({ projectId }: { projectId: string }) {
               <Label htmlFor="field-type">Field Type</Label>
               <Select
                 value={newField.type}
-                onValueChange={(v) => setNewField({ ...newField, type: v as Field["type"] })}
+                onValueChange={(v) => setNewField({ ...newField, type: v as typeof newField.type })}
+                disabled={addingField}
               >
                 <SelectTrigger id="field-type">
                   <SelectValue />
@@ -355,6 +411,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                   placeholder="Option1, Option2, Option3"
                   value={dropdownOptions}
                   onChange={(e) => setDropdownOptions(e.target.value)}
+                  disabled={addingField}
                 />
                 <p className="text-xs text-muted-foreground">
                   Separate options with commas
@@ -373,15 +430,29 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                 id="required-field"
                 checked={newField.required}
                 onCheckedChange={(checked) => setNewField({ ...newField, required: checked })}
+                disabled={addingField}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsFieldDialogOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsFieldDialogOpen(false)}
+              disabled={addingField}
+            >
               Cancel
             </Button>
-            <Button onClick={handleAddField}>Add Field</Button>
+            <Button onClick={handleAddField} disabled={addingField}>
+              {addingField ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Field"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

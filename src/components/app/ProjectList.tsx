@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, FolderOpen, Calendar, MoreVertical } from "lucide-react";
+import { Plus, FolderOpen, Calendar, MoreVertical, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,35 +20,81 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { projectService } from "@/services/projectService";
+import { useSession } from "next-auth/react";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Project {
-  id: string;
-  name: string;
-  createdAt: string;
-}
+type Project = Database["public"]["Tables"]["projects"]["Row"];
 
 export function ProjectList() {
+  const { data: session } = useSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
-  const handleCreateProject = () => {
-    if (!projectName.trim()) return;
+  useEffect(() => {
+    loadProjects();
+  }, [session]);
 
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name: projectName.trim(),
-      createdAt: new Date().toLocaleDateString(),
-    };
+  const loadProjects = async () => {
+    if (!session?.user?.id) {
+      setLoading(false);
+      return;
+    }
 
-    setProjects([newProject, ...projects]);
-    setProjectName("");
-    setIsDialogOpen(false);
+    setLoading(true);
+    const data = await projectService.getProjects(session.user.id);
+    setProjects(data);
+    setLoading(false);
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjects(projects.filter((p) => p.id !== id));
+  const handleCreateProject = async () => {
+    if (!projectName.trim() || !session?.user?.id) return;
+
+    setCreating(true);
+    const newProject = await projectService.createProject(
+      projectName.trim(),
+      session.user.id
+    );
+
+    if (newProject) {
+      setProjects([newProject, ...projects]);
+      setProjectName("");
+      setIsDialogOpen(false);
+    }
+    setCreating(false);
   };
+
+  const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const success = await projectService.deleteProject(id);
+    if (success) {
+      setProjects(projects.filter((p) => p.id !== id));
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-auto bg-background">
@@ -84,10 +130,11 @@ export function ProjectList() {
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (e.key === "Enter" && !creating) {
                         handleCreateProject();
                       }
                     }}
+                    disabled={creating}
                   />
                 </div>
               </div>
@@ -98,15 +145,23 @@ export function ProjectList() {
                     setIsDialogOpen(false);
                     setProjectName("");
                   }}
+                  disabled={creating}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleCreateProject}
-                  disabled={!projectName.trim()}
+                  disabled={!projectName.trim() || creating}
                   className="bg-accent hover:bg-accent/90"
                 >
-                  Create Project
+                  {creating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Project"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -159,10 +214,7 @@ export function ProjectList() {
                           <DropdownMenuItem>Edit</DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProject(project.id);
-                            }}
+                            onClick={(e) => handleDeleteProject(project.id, e)}
                           >
                             Delete
                           </DropdownMenuItem>
@@ -174,7 +226,7 @@ export function ProjectList() {
                   <CardContent>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4 mr-2" />
-                      Created {project.createdAt}
+                      Created {formatDate(project.created_at)}
                     </div>
                   </CardContent>
                 </Card>
