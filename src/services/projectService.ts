@@ -1,12 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-type Project = Database["public"]["Tables"]["projects"]["Row"];
-type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
-type Table = Database["public"]["Tables"]["project_tables"]["Row"];
-type TableInsert = Database["public"]["Tables"]["project_tables"]["Insert"];
-type Field = Database["public"]["Tables"]["table_fields"]["Row"];
-type FieldInsert = Database["public"]["Tables"]["table_fields"]["Insert"];
+export type Project = Database["public"]["Tables"]["projects"]["Row"];
+export type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
+export type Table = Database["public"]["Tables"]["project_tables"]["Row"];
+export type TableInsert = Database["public"]["Tables"]["project_tables"]["Insert"];
+export type Field = Database["public"]["Tables"]["table_fields"]["Row"];
+export type FieldInsert = Database["public"]["Tables"]["table_fields"]["Insert"];
 
 export const projectService = {
   // Project operations
