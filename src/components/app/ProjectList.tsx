@@ -51,18 +51,27 @@ export function ProjectList() {
   };
 
   const handleCreateProject = async () => {
-    if (!projectName.trim() || !session?.user?.id) return;
+    if (!projectName.trim() || !session?.user?.id) {
+      console.log("Validation failed:", { projectName, userId: session?.user?.id });
+      return;
+    }
 
     setCreating(true);
+    console.log("Creating project:", { name: projectName.trim(), userId: session.user.id });
+    
     const newProject = await projectService.createProject(
       projectName.trim(),
       session.user.id
     );
 
+    console.log("Project creation result:", newProject);
+
     if (newProject) {
       setProjects([newProject, ...projects]);
       setProjectName("");
       setIsDialogOpen(false);
+    } else {
+      console.error("Failed to create project - check console for errors");
     }
     setCreating(false);
   };

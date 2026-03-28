@@ -11,11 +11,15 @@ type FieldInsert = Database["public"]["Tables"]["table_fields"]["Insert"];
 export const projectService = {
   // Project operations
   async createProject(name: string, userId: string): Promise<Project | null> {
+    console.log("projectService.createProject called with:", { name, userId });
+    
     const { data, error } = await supabase
       .from("projects")
       .insert({ name, user_id: userId })
       .select()
       .single();
+
+    console.log("Supabase insert result:", { data, error });
 
     if (error) {
       console.error("Error creating project:", error);
