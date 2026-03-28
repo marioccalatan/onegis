@@ -1,12 +1,28 @@
-import React from 'react'
+import { SEO } from "@/components/SEO";
+import { Header } from "@/components/landing/Header";
+import { Hero } from "@/components/landing/Hero";
+import { Features } from "@/components/landing/Features";
+import { Pricing } from "@/components/landing/Pricing";
+import { About } from "@/components/landing/About";
+import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-foreground">Hello World</h1>
-        <p className="text-lg text-muted-foreground">This is going to be your softgen app, start by describing your project.</p>
+    <>
+      <SEO
+        title="UtilityGIS - Professional Geographic Information Systems"
+        description="Professional GIS platform designed for any field. Manage spatial data, analyze patterns, and make informed decisions with powerful mapping tools."
+      />
+      <div className="min-h-screen">
+        <Header />
+        <main>
+          <Hero />
+          <Features />
+          <Pricing />
+          <About />
+        </main>
+        <Footer />
       </div>
-    </main>
-  )
+    </>
+  );
 }
