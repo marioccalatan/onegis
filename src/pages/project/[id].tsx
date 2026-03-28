@@ -47,7 +47,7 @@ export default function ProjectDetail() {
 
   return (
     <>
-      <SEO title={`${projectData?.project.name || "Project"} - OneGIS`} description="OneGIS project management" />
+      <SEO title={`Project ${id ? id : ""} - OneGIS`} description="OneGIS project management" />
       <div className="h-screen flex flex-col overflow-hidden">
         <AppHeader onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <div className="flex flex-1 overflow-hidden">
