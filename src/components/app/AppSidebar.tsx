@@ -1,11 +1,14 @@
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { FolderOpen, Map, Settings, LogOut } from "lucide-react";
-import { useState } from "react";
 
-export function AppSidebar({ isOpen }: { isOpen: boolean }) {
-  const [activeSection, setActiveSection] = useState("map");
+interface AppSidebarProps {
+  isOpen: boolean;
+  activeSection: string;
+  onSectionChange: (section: string) => void;
+}
 
+export function AppSidebar({ isOpen, activeSection, onSectionChange }: AppSidebarProps) {
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" });
   };
@@ -30,7 +33,7 @@ export function AppSidebar({ isOpen }: { isOpen: boolean }) {
             className={`w-full justify-start ${
               activeSection === section.id ? "bg-accent text-white" : ""
             }`}
-            onClick={() => setActiveSection(section.id)}
+            onClick={() => onSectionChange(section.id)}
           >
             <section.icon className="w-4 h-4 mr-3" />
             {section.label}
