@@ -1,12 +1,14 @@
-import { Toaster } from "@/components/ui/toaster";
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
+import { SessionProvider } from "next-auth/react";
+import { ThemeProvider } from "@/contexts/ThemeProvider";
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
-    <>
-      <Component {...pageProps} />
-      <Toaster />
-    </>
+    <SessionProvider session={session}>
+      <ThemeProvider>
+        <Component {...pageProps} />
+      </ThemeProvider>
+    </SessionProvider>
   );
 }
