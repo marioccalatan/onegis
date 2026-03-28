@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Table, MapPin, Loader2 } from "lucide-react";
+import { Plus, Table as TableIcon, MapPin, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { projectService } from "@/services/projectService";
 import type { Database } from "@/integrations/supabase/types";
 
-type TableRow = Database["public"]["Tables"]["tables"]["Row"];
-type FieldRow = Database["public"]["Tables"]["fields"]["Row"];
+type TableRow = Database["public"]["Tables"]["project_tables"]["Row"];
+type FieldRow = Database["public"]["Tables"]["table_fields"]["Row"];
 
 interface TableWithFields extends TableRow {
   fields: FieldRow[];
@@ -79,7 +79,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
     const tableData = {
       project_id: projectId,
       name: newTable.name,
-      type: tableType,
+      table_type: tableType,
       geometry_type: tableType === "geometry" ? newTable.geometryType : null,
     };
 
@@ -97,14 +97,17 @@ export function SchemaTab({ projectId }: { projectId: string }) {
     if (!newField.name.trim() || !currentTableId) return;
 
     setAddingField(true);
+    // Properly format JSON array for Supabase or null if not dropdown
+    const optionsArray = newField.type === "dropdown" 
+      ? dropdownOptions.split(",").map(opt => opt.trim()).filter(Boolean)
+      : null;
+
     const fieldData = {
       table_id: currentTableId,
       name: newField.name,
-      type: newField.type,
-      required: newField.required,
-      options: newField.type === "dropdown" 
-        ? dropdownOptions.split(",").map(opt => opt.trim()).filter(Boolean)
-        : null,
+      field_type: newField.type,
+      is_required: newField.required,
+      dropdown_options: optionsArray,
     };
 
     const field = await projectService.createField(fieldData);
@@ -175,7 +178,7 @@ export function SchemaTab({ projectId }: { projectId: string }) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Table className="w-8 h-8 text-muted-foreground" />
+              <TableIcon className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="font-semibold text-lg mb-2">No tables yet</h3>
             <p className="text-muted-foreground text-center mb-4 max-w-md">
@@ -194,19 +197,19 @@ export function SchemaTab({ projectId }: { projectId: string }) {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    {table.type === "geometry" ? (
+                    {table.table_type === "geometry" ? (
                       <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
                         <MapPin className="w-5 h-5 text-accent" />
                       </div>
                     ) : (
                       <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Table className="w-5 h-5 text-primary" />
+                        <TableIcon className="w-5 h-5 text-primary" />
                       </div>
                     )}
                     <div>
                       <CardTitle>{table.name}</CardTitle>
                       <CardDescription>
-                        {table.type === "geometry" 
+                        {table.table_type === "geometry" 
                           ? `Geometry Table (${table.geometry_type})` 
                           : "Standard Table"} • {table.fields.length} fields
                       </CardDescription>
@@ -245,16 +248,16 @@ export function SchemaTab({ projectId }: { projectId: string }) {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{field.name}</span>
-                              {field.required && (
+                              {field.is_required && (
                                 <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">
                                   Required
                                 </span>
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground mt-1">
-                              Type: {field.type.charAt(0).toUpperCase() + field.type.slice(1)}
-                              {field.type === "dropdown" && field.options && (
-                                <span> • Options: {(field.options as string[]).join(", ")}</span>
+                              Type: {field.field_type.charAt(0).toUpperCase() + field.field_type.slice(1)}
+                              {field.field_type === "dropdown" && field.dropdown_options && (
+                                <span> • Options: {(field.dropdown_options as string[]).join(", ")}</span>
                               )}
                             </div>
                           </div>

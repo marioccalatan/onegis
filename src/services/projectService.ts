@@ -3,10 +3,10 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Project = Database["public"]["Tables"]["projects"]["Row"];
 type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
-type Table = Database["public"]["Tables"]["tables"]["Row"];
-type TableInsert = Database["public"]["Tables"]["tables"]["Insert"];
-type Field = Database["public"]["Tables"]["fields"]["Row"];
-type FieldInsert = Database["public"]["Tables"]["fields"]["Insert"];
+type Table = Database["public"]["Tables"]["project_tables"]["Row"];
+type TableInsert = Database["public"]["Tables"]["project_tables"]["Insert"];
+type Field = Database["public"]["Tables"]["table_fields"]["Row"];
+type FieldInsert = Database["public"]["Tables"]["table_fields"]["Insert"];
 
 export const projectService = {
   // Project operations
@@ -66,9 +66,9 @@ export const projectService = {
   },
 
   // Table operations
-  async createTable(tableData: Omit<TableInsert, "id" | "created_at">): Promise<Table | null> {
+  async createTable(tableData: Omit<TableInsert, "id" | "created_at" | "updated_at">): Promise<Table | null> {
     const { data, error } = await supabase
-      .from("tables")
+      .from("project_tables")
       .insert(tableData)
       .select()
       .single();
@@ -82,7 +82,7 @@ export const projectService = {
 
   async getTables(projectId: string): Promise<Table[]> {
     const { data, error } = await supabase
-      .from("tables")
+      .from("project_tables")
       .select("*")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
@@ -96,7 +96,7 @@ export const projectService = {
 
   async deleteTable(tableId: string): Promise<boolean> {
     const { error } = await supabase
-      .from("tables")
+      .from("project_tables")
       .delete()
       .eq("id", tableId);
 
@@ -110,7 +110,7 @@ export const projectService = {
   // Field operations
   async createField(fieldData: Omit<FieldInsert, "id" | "created_at">): Promise<Field | null> {
     const { data, error } = await supabase
-      .from("fields")
+      .from("table_fields")
       .insert(fieldData)
       .select()
       .single();
@@ -124,7 +124,7 @@ export const projectService = {
 
   async getFields(tableId: string): Promise<Field[]> {
     const { data, error } = await supabase
-      .from("fields")
+      .from("table_fields")
       .select("*")
       .eq("table_id", tableId)
       .order("created_at", { ascending: false });
@@ -138,7 +138,7 @@ export const projectService = {
 
   async deleteField(fieldId: string): Promise<boolean> {
     const { error } = await supabase
-      .from("fields")
+      .from("table_fields")
       .delete()
       .eq("id", fieldId);
 
