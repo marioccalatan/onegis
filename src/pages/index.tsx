@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="UtilityGIS - Professional Geographic Information Systems"
+        title="OneGIS - Professional Geographic Information Systems"
         description="Professional GIS platform designed for any field. Manage spatial data, analyze patterns, and make informed decisions with powerful mapping tools."
       />
       <div className="min-h-screen">

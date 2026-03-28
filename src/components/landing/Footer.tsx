@@ -12,7 +12,7 @@ export function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
-              <span className="font-heading font-bold text-xl">UtilityGIS</span>
+              <span className="font-heading font-bold text-xl">OneGIS</span>
             </div>
             <p className="text-sm text-primary-foreground/80">
               Professional geographic information systems for modern workflows.
@@ -50,7 +50,7 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60">
-          <p>© {new Date().getFullYear()} UtilityGIS. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} OneGIS. All rights reserved.</p>
         </div>
       </div>
     </footer>
