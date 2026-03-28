@@ -10,6 +10,7 @@ export default function App() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [bypassAuth, setBypassAuth] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     // Allow bypass for testing if auth not configured
@@ -44,9 +45,9 @@ export default function App() {
     <>
       <SEO title="Dashboard - UtilityGIS" description="UtilityGIS mapping dashboard" />
       <div className="h-screen flex flex-col overflow-hidden">
-        <AppHeader />
+        <AppHeader onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <div className="flex flex-1 overflow-hidden">
-          <AppSidebar />
+          <AppSidebar isOpen={sidebarOpen} />
           <main className="flex-1 overflow-hidden">
             <MapView />
           </main>

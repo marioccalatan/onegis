@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { FolderOpen, Map, Settings, LogOut } from "lucide-react";
 import { useState } from "react";
 
-export function AppSidebar() {
+export function AppSidebar({ isOpen }: { isOpen: boolean }) {
   const [activeSection, setActiveSection] = useState("map");
 
   const handleSignOut = async () => {
@@ -17,7 +17,11 @@ export function AppSidebar() {
   ];
 
   return (
-    <aside className="w-64 border-r border-border bg-card flex flex-col shrink-0">
+    <aside
+      className={`border-r border-border bg-card flex flex-col shrink-0 transition-all duration-300 ${
+        isOpen ? "w-64" : "w-0 overflow-hidden"
+      }`}
+    >
       <nav className="flex-1 p-4 space-y-2">
         {sections.map((section) => (
           <Button
